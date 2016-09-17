@@ -40,6 +40,30 @@ Cache.get = async (key) => {
 }
 
 
+const getUpdateSql = (keyword) => {
+    return `
+select
+    e1.keyword, e1.description
+from
+    entry e1
+where
+    EXISTS (
+        select
+            'X'
+        from
+            entry e2
+        where
+            e2.id = ${keyword}
+        and
+            e2.description like concat('%', e1.keyword, '%')
+    );
+`;
+}
+
+
+
+
+
 let _config;
 const config = (key) => {
   if (!_config) {
@@ -197,6 +221,17 @@ router.post('keyword', async (ctx, next) => {
 
   await htmlify(ctx, keyword, description);
 
+  const rows = await db.query(getUpdateSql(), []);
+  console.log(rows);
+    
+  if (rows && rows.length > 0) {
+      rows.forEach((row) => {
+          const keyword = row.keyword;
+          const description = row.description;
+          htmlify2(keyword, description)
+      });
+  }
+
   await ctx.redirect('/');
 
 });
@@ -323,7 +358,6 @@ router.post('keyword/:keyword', async (ctx, next) => {
   }
 
   await db.query('DELETE FROM entry WHERE keyword = ?', [keyword]);
-
   Cache.clear(keyword);
 
   await ctx.redirect('/');
@@ -361,6 +395,44 @@ const htmlify = async (ctx, keyword, content) => {
 
   return result;
 };
+
+
+const htmlify2 = async (keyword, content) => {
+  console.log('htmlify2');
+
+  if (content == null) {
+    return '';
+  }
+
+  const htmlCacheKey = Cache.createKey(keyword, content);
+  const cache = await Cache.get(Cache.createKey(keyword, content));
+  if (cache) {
+    return cache;
+  }
+
+//  const db = await dbh(ctx);
+  const key2sha = new Map();
+  const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
+  let result = content.replace(re, (keyword) => {
+    const sha1 = crypto.createHash('sha1');
+    sha1.update(keyword);
+    let sha1hex = `isuda_${sha1.digest('hex')}`;
+    key2sha.set(keyword, sha1hex);
+    return sha1hex;
+  });
+  for (let kw of key2sha.keys()) {
+    const url = `/keyword/${RFC3986URIComponent(kw)}`;
+    const link = `<a href=${url}>${ejs.escapeXML(kw)}</a>`;
+    result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
+  }
+  result = result.replace(/\n/g, "<br />\n");
+
+  Cache.put(htmlCacheKey, result)
+
+  return result;
+};
+
+
 
 const escapeRegExp  = (string) => {
     return string.replace(/([.*+?^=!:${}()|[\]\/\\])/g, "\\$1");
