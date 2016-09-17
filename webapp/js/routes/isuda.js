@@ -34,7 +34,7 @@ var Cache = {
         console.log('[CACHE PUT] ' + key);
         Cache.html[key] = html;
     },
-    get: async function(key) {
+    get: function(key) {
         return Cache.html[key];
     }
 };
@@ -141,9 +141,9 @@ router.get('', async (ctx, next) => {
   const entries = await db.query('SELECT * FROM entry ORDER BY updated_at DESC LIMIT ? OFFSET ?', [perPage, perPage * (page - 1)])
   for (let entry of entries) {
       const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
-      const cache = Cache.get(htmlCacheKey);
+      const cache = await Cache.get(htmlCacheKey);
       if (cache) {
-          entry.html = await cache;
+          entry.html = cache;
       } else {
           entry.html = await htmlify(ctx, entry.description);
           Cache.put(htmlCacheKey, entry.html)
@@ -297,9 +297,9 @@ router.get('keyword/:keyword', async (ctx, next) => {
   }
   ctx.state.entry = entries[0];
   const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
-  const cache = Cache.get(htmlCacheKey);
+  const cache = await Cache.get(htmlCacheKey);
   if (cache) {
-    ctx.state.entry.html = await cache;
+    ctx.state.entry.html = cache;
   } else {
     ctx.state.entry.html = await htmlify(ctx, ctx.state.entry.description);
     Cache.put(htmlCacheKey, ctx.state.entry.html);
