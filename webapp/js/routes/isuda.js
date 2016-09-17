@@ -34,7 +34,7 @@ var Cache = {
         console.log('[CACHE PUT] ' + key);
         Cache.html[key] = html;
     },
-    get: function(key) {
+    get: async function(key) {
         return Cache.html[key];
     }
 };
