@@ -229,14 +229,7 @@ router.post('keyword', async (ctx, next) => {
   const rows = await db.query(selectSql, []);
   console.log(rows);
 
-  if (rows && rows.length > 0) {
-      rows.forEach((row) => {
-          console.log(row);
-          const keyword = row.keyword;
-          const description = row.description;
-          htmlify2(keyword, description)
-      });
-  }
+  await htmlify2(rows);
 
   await ctx.redirect('/');
 
@@ -403,39 +396,49 @@ const htmlify = async (ctx, keyword, content) => {
 };
 
 
-const htmlify2 = async (keyword, content) => {
-  console.log('htmlify2');
+const htmlify2 = async (rows) => {
 
-  if (content == null) {
-    return '';
+  if (rows && rows.length > 0) {
+      rows.forEach((row) => {
+          console.log(row);
+          const keyword = row.keyword;
+          const description = row.description;
+          console.log('htmlify2');
+
+          if (content == null) {
+              return '';
+          }
+
+          const htmlCacheKey = Cache.createKey(keyword, content);
+          const cache = await Cache.get(Cache.createKey(keyword, content));
+          if (cache) {
+              return cache;
+          }
+
+          //  const db = await dbh(ctx);
+          const key2sha = new Map();
+          const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
+          let result = content.replace(re, (keyword) => {
+              const sha1 = crypto.createHash('sha1');
+              sha1.update(keyword);
+              let sha1hex = `isuda_${sha1.digest('hex')}`;
+              key2sha.set(keyword, sha1hex);
+              return sha1hex;
+          });
+          for (let kw of key2sha.keys()) {
+              const url = `/keyword/${RFC3986URIComponent(kw)}`;
+              const link = `<a href=${url}>${ejs.escapeXML(kw)}</a>`;
+              result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
+          }
+          result = result.replace(/\n/g, "<br />\n");
+
+          Cache.put(htmlCacheKey, result)
+
+          return result;
+
+      });
   }
 
-  const htmlCacheKey = Cache.createKey(keyword, content);
-  const cache = await Cache.get(Cache.createKey(keyword, content));
-  if (cache) {
-    return cache;
-  }
-
-//  const db = await dbh(ctx);
-  const key2sha = new Map();
-  const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
-  let result = content.replace(re, (keyword) => {
-    const sha1 = crypto.createHash('sha1');
-    sha1.update(keyword);
-    let sha1hex = `isuda_${sha1.digest('hex')}`;
-    key2sha.set(keyword, sha1hex);
-    return sha1hex;
-  });
-  for (let kw of key2sha.keys()) {
-    const url = `/keyword/${RFC3986URIComponent(kw)}`;
-    const link = `<a href=${url}>${ejs.escapeXML(kw)}</a>`;
-    result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
-  }
-  result = result.replace(/\n/g, "<br />\n");
-
-  Cache.put(htmlCacheKey, result)
-
-  return result;
 };
 
 
