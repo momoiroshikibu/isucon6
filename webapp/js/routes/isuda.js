@@ -5,7 +5,9 @@ const crypto = require('crypto');
 const axios = require('axios');
 const ejs = require('ejs');
 const redis = require('redis');
-const redisClient = redis.createClient();
+const client = cachere.createClient();
+
+
 
 
 // logger
@@ -20,6 +22,8 @@ console.log = function(d) {
 };
 
 
+console.log(client);
+
 var keywords = [];
 
 var Cache = {
@@ -31,12 +35,16 @@ var Cache = {
     },
     put: function(key, html) {
         console.log('[CACHE PUT] ' + key);
-        Cache.html[key] = html;
+        client.set(key, html, () => {
+            // what should do?
+        });
     }
 };
 
 Cache.get = async (key) => {
-    return Cache.html[key];
+    client.get(key, (value) => {
+        await value;
+    });
 }
 
 
