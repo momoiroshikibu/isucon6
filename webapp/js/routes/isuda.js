@@ -5,8 +5,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const ejs = require('ejs');
 const redis = require('redis');
-const redis = cachere.createClient();
-
+const client = cachere.createClient();
 
 // logger
 var fs = require('fs');
