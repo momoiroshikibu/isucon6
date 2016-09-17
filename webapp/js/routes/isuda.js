@@ -398,45 +398,46 @@ const htmlify = async (ctx, keyword, content) => {
 
 const htmlify2 = async (rows) => {
 
-  if (rows && rows.length > 0) {
-      for (let row of rows) {
+    if (!rows) {
+        rows = []
+    }
+    await Promise.all(
+        rows.map((row) => {
+            return new Promise((resolve, reject) => {
+                console.log(row);
+                const keyword = row.keyword;
+                const description = row.description;
+                console.log('htmlify2');
 
-          await new Promise((resolve, reject) => {
-              console.log(row);
-              const keyword = row.keyword;
-              const description = row.description;
-              console.log('htmlify2');
+                if (content == null) {
+                    return '';
+                }
 
-              if (content == null) {
-                  return '';
-              }
+                const htmlCacheKey = Cache.createKey(keyword, content);
 
-              const htmlCacheKey = Cache.createKey(keyword, content);
+                //  const db = await dbh(ctx);
+                const key2sha = new Map();
+                const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
+                let result = content.replace(re, (keyword) => {
+                    const sha1 = crypto.createHash('sha1');
+                    sha1.update(keyword);
+                    let sha1hex = `isuda_${sha1.digest('hex')}`;
+                    key2sha.set(keyword, sha1hex);
+                    return sha1hex;
+                });
+                for (let kw of key2sha.keys()) {
+                    const url = `/keyword/${RFC3986URIComponent(kw)}`;
+                    const link = `<a href=${url}>${ejs.escapeXML(kw)}</a>`;
+                    result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
+                }
+                result = result.replace(/\n/g, "<br />\n");
 
-              //  const db = await dbh(ctx);
-              const key2sha = new Map();
-              const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
-              let result = content.replace(re, (keyword) => {
-                  const sha1 = crypto.createHash('sha1');
-                  sha1.update(keyword);
-                  let sha1hex = `isuda_${sha1.digest('hex')}`;
-                  key2sha.set(keyword, sha1hex);
-                  return sha1hex;
-              });
-              for (let kw of key2sha.keys()) {
-                  const url = `/keyword/${RFC3986URIComponent(kw)}`;
-                  const link = `<a href=${url}>${ejs.escapeXML(kw)}</a>`;
-                  result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
-              }
-              result = result.replace(/\n/g, "<br />\n");
+                Cache.put(htmlCacheKey, result)
+                resolve(result);
+            });
 
-              Cache.put(htmlCacheKey, result)
-              resolve(result);
-          });
-
-      });
-  }
-
+        });
+    );
 };
 
 
