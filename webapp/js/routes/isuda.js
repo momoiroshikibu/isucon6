@@ -33,11 +33,12 @@ var Cache = {
     put: function(key, html) {
         console.log('[CACHE PUT] ' + key);
         Cache.html[key] = html;
-    },
-    get: function(key) {
-        return Cache.html[key];
     }
 };
+
+Cache.get = async (key) => {
+    return Cache.html[key];
+}
 
 
 let _config;
