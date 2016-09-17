@@ -1,0 +1,10 @@
+.bash_logout
+.bashrc
+.cache/
+.cloud-locale-test.skip
+.local/
+.profile
+.ssh/
+.xslate_cache/
+.viminfo
+bin/
