@@ -40,10 +40,11 @@ Cache.get = async (key) => {
 }
 
 
-const getUpdateSql = (keyword) => {
+const getUpdateTargetsSql = (keyword) => {
     return `
 select
-    e1.keyword, e1.description
+    e1.keyword as keyword,
+    e1.description as description
 from
     entry e1
 where
@@ -221,11 +222,16 @@ router.post('keyword', async (ctx, next) => {
 
   await htmlify(ctx, keyword, description);
 
-  const rows = await db.query(getUpdateSql(), []);
+  const selectSql = getUpdateTargetsSql(keyword);
+
+  console.log(selectSql);
+
+  const rows = await db.query(selectSql, []);
   console.log(rows);
-    
+
   if (rows && rows.length > 0) {
       rows.forEach((row) => {
+          console.log(row);
           const keyword = row.keyword;
           const description = row.description;
           htmlify2(keyword, description)
