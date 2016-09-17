@@ -54,7 +54,7 @@ where
         from
             entry e2
         where
-            e2.id = ${keyword}
+            e2.id = "${keyword}"
         and
             e2.description like concat('%', e1.keyword, '%')
     );
