@@ -14,8 +14,11 @@ var Cache = {
     html: {
 
     },
-    createKey(keyword, description) {
+    createKey: function(keyword, description) {
         return keyword + description;
+    },
+    put: function(key, html) {
+        Cache.html[key] = html;
     }
 };
 
@@ -125,6 +128,7 @@ router.get('', async (ctx, next) => {
           entry.html = await Cache.html.htmlCacheKey;
       } else {
           entry.html = await htmlify(ctx, entry.description);
+          Cache.put(htmlCacheKey, entry.html)
       }
     entry.stars = await loadStars(ctx, entry.keyword);
   }
@@ -279,6 +283,7 @@ router.get('keyword/:keyword', async (ctx, next) => {
     ctx.state.entry.html = await Cache.html.htmlCacheKey;
   } else {
     ctx.state.entry.html = await htmlify(ctx, entry.description);
+    Cache.put(htmlCacheKey, ctx.state.entry.html);
   }
   ctx.state.entry.stars = await loadStars(ctx, keyword);
   await ctx.render('keyword');
