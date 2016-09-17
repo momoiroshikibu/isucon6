@@ -296,12 +296,13 @@ router.get('keyword/:keyword', async (ctx, next) => {
     return;
   }
   ctx.state.entry = entries[0];
+  const entry = ctx.state.entry;
   const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
   const cache = await Cache.get(htmlCacheKey);
   if (cache) {
     ctx.state.entry.html = cache;
   } else {
-    ctx.state.entry.html = await htmlify(ctx, ctx.state.entry.description);
+    ctx.state.entry.html = await htmlify(ctx, entry.description);
     Cache.put(htmlCacheKey, ctx.state.entry.html);
   }
   ctx.state.entry.stars = await loadStars(ctx, keyword);
