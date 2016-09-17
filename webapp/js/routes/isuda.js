@@ -7,7 +7,18 @@ const ejs = require('ejs');
 const redis = require('redis');
 const redisClient = redis.createClient();
 
-var keywords = null
+
+var keywords = null;
+
+var Cache = {
+    html: {
+
+    },
+    createKey(keyword, description) {
+        return keyword + description;
+    }
+};
+
 
 let _config;
 const config = (key) => {
@@ -109,7 +120,12 @@ router.get('', async (ctx, next) => {
   const db = await dbh(ctx);
   const entries = await db.query('SELECT * FROM entry ORDER BY updated_at DESC LIMIT ? OFFSET ?', [perPage, perPage * (page - 1)])
   for (let entry of entries) {
-    entry.html = await htmlify(ctx, entry.description);
+      const htmlCacheKey = createKey(entry.keyword, entry.description);
+      if (Cache.html.htmlCacheKey) {
+          entry.html = Cache.html.htmlCacheKey;
+      } else {
+          entry.html = await htmlify(ctx, entry.description);
+      }
     entry.stars = await loadStars(ctx, entry.keyword);
   }
 
@@ -258,7 +274,12 @@ router.get('keyword/:keyword', async (ctx, next) => {
     return;
   }
   ctx.state.entry = entries[0];
-  ctx.state.entry.html = await htmlify(ctx, entries[0].description);
+  const htmlCacheKey = createKey(entry.keyword, entry.description);
+  if (Cache.html.htmlCacheKey) {
+    ctx.state.entry.html = Cache.html.htmlCacheKey;
+  } else {
+    ctx.state.entry.html = await htmlify(ctx, entry.description);
+  }
   ctx.state.entry.stars = await loadStars(ctx, keyword);
   await ctx.render('keyword');
 });
