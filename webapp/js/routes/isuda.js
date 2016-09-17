@@ -4,6 +4,10 @@ const mysql = require('promise-mysql');
 const crypto = require('crypto');
 const axios = require('axios');
 const ejs = require('ejs');
+const redis = require('redis');
+const redisClient = redis.createClient();
+
+var keywords = null
 
 let _config;
 const config = (key) => {
@@ -87,6 +91,7 @@ router.use(async (ctx, next) => {
 router.get('initialize', async (ctx, next) => {
   const db = await dbh(ctx);
   await db.query('DELETE FROM entry WHERE id > 7101');
+  keywords = await db.query('SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC');
   const origin = config('isutarOrigin');
   const res = await axios.get(`${origin}/initialize`);
   ctx.body = {
@@ -294,7 +299,6 @@ const htmlify = async (ctx, content) => {
   }
 
   const db = await dbh(ctx);
-  const keywords = await db.query('SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC');
   const key2sha = new Map();
   const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
   let result = content.replace(re, (keyword) => {
