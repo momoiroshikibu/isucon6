@@ -8,6 +8,18 @@ const redis = require('redis');
 const redisClient = redis.createClient();
 
 
+// logger
+var fs = require('fs');
+var util = require('util');
+var log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'w'});
+var log_stdout = process.stdout;
+
+console.log = function(d) {
+  log_file.write('\n' + util.format(d) + '\n');
+  log_stdout.write('\n' + util.format(d) + '\n');
+};
+
+
 var keywords = null;
 
 var Cache = {
@@ -15,10 +27,15 @@ var Cache = {
 
     },
     createKey: function(keyword, description) {
+        console.log('[CACHE KEY] ' + key);
         return keyword + description;
     },
     put: function(key, html) {
+        console.log('[CACHE PUT] ' + key);
         Cache.html[key] = html;
+    },
+    get: function(key) {
+        return Cache.html[key];
     }
 };
 
@@ -124,8 +141,9 @@ router.get('', async (ctx, next) => {
   const entries = await db.query('SELECT * FROM entry ORDER BY updated_at DESC LIMIT ? OFFSET ?', [perPage, perPage * (page - 1)])
   for (let entry of entries) {
       const htmlCacheKey = createKey(entry.keyword, entry.description);
-      if (Cache.html.htmlCacheKey) {
-          entry.html = await Cache.html.htmlCacheKey;
+      const cache = Cache.get(htmlCacheKey);
+      if (cache) {
+          entry.html = await cache;
       } else {
           entry.html = await htmlify(ctx, entry.description);
           Cache.put(htmlCacheKey, entry.html)
@@ -279,8 +297,9 @@ router.get('keyword/:keyword', async (ctx, next) => {
   }
   ctx.state.entry = entries[0];
   const htmlCacheKey = createKey(entry.keyword, entry.description);
-  if (Cache.html.htmlCacheKey) {
-    ctx.state.entry.html = await Cache.html.htmlCacheKey;
+  const cache = Cache.get(htmlCacheKey);
+  if (cache) {
+    ctx.state.entry.html = await cache;
   } else {
     ctx.state.entry.html = await htmlify(ctx, entry.description);
     Cache.put(htmlCacheKey, ctx.state.entry.html);
