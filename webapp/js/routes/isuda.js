@@ -399,7 +399,7 @@ const htmlify = async (ctx, keyword, content) => {
 const htmlify2 = async (rows) => {
 
   if (rows && rows.length > 0) {
-      rows.forEach((row) => {
+      for (let row of rows) {
           console.log(row);
           const keyword = row.keyword;
           const description = row.description;
@@ -410,10 +410,6 @@ const htmlify2 = async (rows) => {
           }
 
           const htmlCacheKey = Cache.createKey(keyword, content);
-          const cache = await Cache.get(Cache.createKey(keyword, content));
-          if (cache) {
-              return cache;
-          }
 
           //  const db = await dbh(ctx);
           const key2sha = new Map();
@@ -434,7 +430,7 @@ const htmlify2 = async (rows) => {
 
           Cache.put(htmlCacheKey, result)
 
-          return result;
+          await result;
 
       });
   }
