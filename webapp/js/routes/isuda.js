@@ -141,14 +141,7 @@ router.get('', async (ctx, next) => {
   const db = await dbh(ctx);
   const entries = await db.query('SELECT * FROM entry ORDER BY updated_at DESC LIMIT ? OFFSET ?', [perPage, perPage * (page - 1)])
   for (let entry of entries) {
-      const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
-      const cache = await Cache.get(htmlCacheKey);
-      if (cache) {
-          entry.html = cache;
-      } else {
-          entry.html = await htmlify(ctx, entry.description);
-          Cache.put(htmlCacheKey, entry.html)
-      }
+    entry.html = await htmlify(ctx, entry.keyword, entry.description);
     entry.stars = await loadStars(ctx, entry.keyword);
   }
 
@@ -298,14 +291,7 @@ router.get('keyword/:keyword', async (ctx, next) => {
   }
   ctx.state.entry = entries[0];
   const entry = ctx.state.entry;
-  const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
-  const cache = await Cache.get(htmlCacheKey);
-  if (cache) {
-    ctx.state.entry.html = cache;
-  } else {
-    ctx.state.entry.html = await htmlify(ctx, entry.description);
-    Cache.put(htmlCacheKey, ctx.state.entry.html);
-  }
+  ctx.state.entry.html = await htmlify(ctx, keyword, entry.description);
   ctx.state.entry.stars = await loadStars(ctx, keyword);
   await ctx.render('keyword');
 });
@@ -340,9 +326,15 @@ router.post('keyword/:keyword', async (ctx, next) => {
   await ctx.redirect('/');
 });
 
-const htmlify = async (ctx, content) => {
+const htmlify = async (ctx, keyword, content) => {
   if (content == null) {
     return '';
+  }
+
+  const htmlCacheKey = Cache.createKey(keyword, content);
+  const cache = await Cache.get(Cache.createKey(keyword, content));
+  if (cache) {
+    return cache;
   }
 
   const db = await dbh(ctx);
@@ -361,6 +353,8 @@ const htmlify = async (ctx, content) => {
     result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
   }
   result = result.replace(/\n/g, "<br />\n");
+
+  Cache.put(htmlCacheKey, result)
 
   return result;
 };
