@@ -122,7 +122,7 @@ router.get('', async (ctx, next) => {
   for (let entry of entries) {
       const htmlCacheKey = createKey(entry.keyword, entry.description);
       if (Cache.html.htmlCacheKey) {
-          entry.html = Cache.html.htmlCacheKey;
+          entry.html = await Cache.html.htmlCacheKey;
       } else {
           entry.html = await htmlify(ctx, entry.description);
       }
@@ -276,7 +276,7 @@ router.get('keyword/:keyword', async (ctx, next) => {
   ctx.state.entry = entries[0];
   const htmlCacheKey = createKey(entry.keyword, entry.description);
   if (Cache.html.htmlCacheKey) {
-    ctx.state.entry.html = Cache.html.htmlCacheKey;
+    ctx.state.entry.html = await Cache.html.htmlCacheKey;
   } else {
     ctx.state.entry.html = await htmlify(ctx, entry.description);
   }
