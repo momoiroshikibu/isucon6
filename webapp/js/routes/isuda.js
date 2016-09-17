@@ -27,7 +27,7 @@ var Cache = {
 
     },
     createKey: function(keyword, description) {
-        console.log('[CACHE KEY] ' + key);
+        console.log('[CACHE KEY] ' + keyword);
         return keyword + description;
     },
     put: function(key, html) {
