@@ -8,3 +8,6 @@
 .xslate_cache/
 .viminfo
 bin/
+.babel.json
+.mysql_history
+.npm/
