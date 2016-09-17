@@ -5,6 +5,66 @@ const crypto = require('crypto');
 const axios = require('axios');
 const ejs = require('ejs');
 
+// logger
+var fs = require('fs');
+var util = require('util');
+var log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'w'});
+var log_stdout = process.stdout;
+
+console.log = function(d) {
+  log_file.write('\n' + util.format(d) + '\n');
+  log_stdout.write('\n' + util.format(d) + '\n');
+};
+
+
+var keywords = [];
+
+var Cache = {
+    html: {
+
+    },
+    createKey: function(keyword, description) {
+        return keyword;
+    },
+    put: function(key, html) {
+        console.log('[CACHE PUT] ' + key);
+        Cache.html[key] = html;
+    },
+    clear: function(key) {
+        delete Cache.html[key];
+    }
+};
+
+Cache.get = async (key) => {
+    return Cache.html[key];
+}
+
+
+const getUpdateTargetsSql = (keyword) => {
+    return `
+select
+    e1.keyword as keyword,
+    e1.description as description
+from
+    entry e1
+where
+    EXISTS (
+        select
+            'X'
+        from
+            entry e2
+        where
+            e2.id = "${keyword}"
+        and
+            e2.description like concat('%', e1.keyword, '%')
+    );
+`;
+}
+
+
+
+
+
 let _config;
 const config = (key) => {
   if (!_config) {
@@ -87,6 +147,7 @@ router.use(async (ctx, next) => {
 router.get('initialize', async (ctx, next) => {
   const db = await dbh(ctx);
   await db.query('DELETE FROM entry WHERE id > 7101');
+  keywords = await db.query('SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC');
   const origin = config('isutarOrigin');
   const res = await axios.get(`${origin}/initialize`);
   ctx.body = {
@@ -104,7 +165,7 @@ router.get('', async (ctx, next) => {
   const db = await dbh(ctx);
   const entries = await db.query('SELECT * FROM entry ORDER BY updated_at DESC LIMIT ? OFFSET ?', [perPage, perPage * (page - 1)])
   for (let entry of entries) {
-    entry.html = await htmlify(ctx, entry.description);
+    entry.html = await htmlify(ctx, entry.keyword, entry.description);
     entry.stars = await loadStars(ctx, entry.keyword);
   }
 
@@ -158,6 +219,17 @@ router.post('keyword', async (ctx, next) => {
     [
       userId, keyword, description, userId, keyword, description
     ]);
+
+  await htmlify(ctx, keyword, description);
+
+  const selectSql = getUpdateTargetsSql(keyword);
+
+  console.log(selectSql);
+
+  const rows = await db.query(selectSql, []);
+  console.log(rows);
+
+  await htmlify2(rows);
 
   await ctx.redirect('/');
 
@@ -253,7 +325,8 @@ router.get('keyword/:keyword', async (ctx, next) => {
     return;
   }
   ctx.state.entry = entries[0];
-  ctx.state.entry.html = await htmlify(ctx, entries[0].description);
+  const entry = ctx.state.entry;
+  ctx.state.entry.html = await htmlify(ctx, keyword, entry.description);
   ctx.state.entry.stars = await loadStars(ctx, keyword);
   await ctx.render('keyword');
 });
@@ -284,17 +357,23 @@ router.post('keyword/:keyword', async (ctx, next) => {
   }
 
   await db.query('DELETE FROM entry WHERE keyword = ?', [keyword]);
+  Cache.clear(keyword);
 
   await ctx.redirect('/');
 });
 
-const htmlify = async (ctx, content) => {
+const htmlify = async (ctx, keyword, content) => {
   if (content == null) {
     return '';
   }
 
+  const htmlCacheKey = Cache.createKey(keyword, content);
+  const cache = await Cache.get(Cache.createKey(keyword, content));
+  if (cache) {
+    return cache;
+  }
+
   const db = await dbh(ctx);
-  const keywords = await db.query('SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC');
   const key2sha = new Map();
   const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
   let result = content.replace(re, (keyword) => {
@@ -311,8 +390,57 @@ const htmlify = async (ctx, content) => {
   }
   result = result.replace(/\n/g, "<br />\n");
 
+  Cache.put(htmlCacheKey, result)
+
   return result;
 };
+
+
+const htmlify2 = async (rows) => {
+
+    if (!rows) {
+        rows = []
+    }
+    await Promise.all(
+        rows.map((row) => {
+            return new Promise((resolve, reject) => {
+                console.log(row);
+                const keyword = row.keyword;
+                const description = row.description;
+                console.log('htmlify2');
+
+                if (content == null) {
+                    return '';
+                }
+
+                const htmlCacheKey = Cache.createKey(keyword, content);
+
+                //  const db = await dbh(ctx);
+                const key2sha = new Map();
+                const re = new RegExp(keywords.map((keyword) => escapeRegExp(keyword.keyword)).join('|'), 'g');
+                let result = content.replace(re, (keyword) => {
+                    const sha1 = crypto.createHash('sha1');
+                    sha1.update(keyword);
+                    let sha1hex = `isuda_${sha1.digest('hex')}`;
+                    key2sha.set(keyword, sha1hex);
+                    return sha1hex;
+                });
+                for (let kw of key2sha.keys()) {
+                    const url = `/keyword/${RFC3986URIComponent(kw)}`;
+                    const link = `<a href=${url}>${ejs.escapeXML(kw)}</a>`;
+                    result = result.replace(new RegExp(escapeRegExp(key2sha.get(kw)), 'g'), link);
+                }
+                result = result.replace(/\n/g, "<br />\n");
+
+                Cache.put(htmlCacheKey, result)
+                resolve(result);
+            });
+
+        });
+    );
+};
+
+
 
 const escapeRegExp  = (string) => {
     return string.replace(/([.*+?^=!:${}()|[\]\/\\])/g, "\\$1");
