@@ -140,7 +140,7 @@ router.get('', async (ctx, next) => {
   const db = await dbh(ctx);
   const entries = await db.query('SELECT * FROM entry ORDER BY updated_at DESC LIMIT ? OFFSET ?', [perPage, perPage * (page - 1)])
   for (let entry of entries) {
-      const htmlCacheKey = createKey(entry.keyword, entry.description);
+      const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
       const cache = Cache.get(htmlCacheKey);
       if (cache) {
           entry.html = await cache;
@@ -296,7 +296,7 @@ router.get('keyword/:keyword', async (ctx, next) => {
     return;
   }
   ctx.state.entry = entries[0];
-  const htmlCacheKey = createKey(entry.keyword, entry.description);
+  const htmlCacheKey = Cache.createKey(entry.keyword, entry.description);
   const cache = Cache.get(htmlCacheKey);
   if (cache) {
     ctx.state.entry.html = await cache;
