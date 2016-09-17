@@ -123,9 +123,7 @@ router.use(async (ctx, next) => {
 router.get('initialize', async (ctx, next) => {
   const db = await dbh(ctx);
   await db.query('DELETE FROM entry WHERE id > 7101');
-  console.log(keywords);
   keywords = await db.query('SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC');
-  console.log(keywords);
   const origin = config('isutarOrigin');
   const res = await axios.get(`${origin}/initialize`);
   ctx.body = {
