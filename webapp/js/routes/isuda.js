@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const ejs = require('ejs');
 const redis = require('redis');
-const redisClient = redis.createClient();
+const redis = cachere.createClient();
 
 
 // logger
@@ -32,6 +32,9 @@ var Cache = {
     put: function(key, html) {
         console.log('[CACHE PUT] ' + key);
         Cache.html[key] = html;
+    },
+    clear: function(key) {
+        delete Cache.html[key];
     }
 };
 
@@ -195,6 +198,8 @@ router.post('keyword', async (ctx, next) => {
       userId, keyword, description, userId, keyword, description
     ]);
 
+  await htmlify(ctx, keyword, description);
+
   await ctx.redirect('/');
 
 });
@@ -321,6 +326,8 @@ router.post('keyword/:keyword', async (ctx, next) => {
   }
 
   await db.query('DELETE FROM entry WHERE keyword = ?', [keyword]);
+
+  Cache.clear(keyword);
 
   await ctx.redirect('/');
 });
