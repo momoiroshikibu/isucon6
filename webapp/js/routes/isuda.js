@@ -20,7 +20,7 @@ console.log = function(d) {
 };
 
 
-var keywords = null;
+var keywords = [];
 
 var Cache = {
     html: {
