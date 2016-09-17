@@ -301,7 +301,7 @@ router.get('keyword/:keyword', async (ctx, next) => {
   if (cache) {
     ctx.state.entry.html = await cache;
   } else {
-    ctx.state.entry.html = await htmlify(ctx, entry.description);
+    ctx.state.entry.html = await htmlify(ctx, ctx.state.entry.description);
     Cache.put(htmlCacheKey, ctx.state.entry.html);
   }
   ctx.state.entry.stars = await loadStars(ctx, keyword);
